@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+	<head>
+		<meta charset="utf-8">
+		<title>Mecodepretty - Stypi Stats</title>
+		<link rel="stylesheet"  href="assets/style.css">
+		<link rel="stylesheet"  href="assets/diffview.css">
+		<script src="assets/jquery-1.8.2.js" type="text/javascript"></script>
+		<script src="assets/jquery.tablesorter.min.js" type="text/javascript"></script>
+		<script src="assets/jquery.metadata.js" type="text/javascript"></script>
+		<script src='assets/jquery.timeago.js' type='text/javascript'></script>
+		<script src='assets/jstz.min.js' type='text/javascript'></script>
+		<script type="text/javascript">
+			$(document).ready(function() {
+				var revisions = [];
+				fetchStats ();
+				setInterval("fetchStats ()", 7 * 60 * 1000); 
+
+				window.onpopstate = function() {  
+					console.log ("back"); 
+					$("#docdetails").hide();
+					$("#filelist").show();
+				}
+					
+				$('button#comparerevisions').click (function (e) {
+					var versions = [];
+					var names = [];
+					$('#docdetails tbody input[type=checkbox]:checked').each(function() {
+						var node = this;
+						while ($(node)[0].nodeName.toLowerCase() != 'tr') {
+							node = $(node).parent();
+						}
+						names.push ($('a', node).text());
+						versions.push($(this).attr('name'));
+					});
+					compareVersions (versions[0], versions[1], names[0], names[1]); 
+				});
+			});
+			
+			function fetchStats () {			
+				$.ajax({
+					url: "stypi/sitemap.json",
+					cache: false,
+					success: function(json){
+					 	revisions = [];
+						var data = jQuery.parseJSON(json);
+						var files = data["files"];
+					 	createDocumentTable (files);
+						$.each(files, function(index) {
+							var file = files[index];
+							var uid = file["uid"];
+							revisions[uid] = file["history"]["versions"];
+						});
+						insertScanData (data);
+						
+						$('a.docDetails').click(function(e) {
+							var href = $(this).attr('href');
+							createRevisionTable (href);
+							$("#filelist").hide();
+							$("#docdetails").show();		 	
+							history.pushState("docdetails","","http://isnow.de/mecodepretty/");
+							e.preventDefault();
+						});
+					},
+					error: function(data){
+						alert ("Error updating");
+					}
+				});
+			}
+			
+			function createRevisionTable (href) {
+				$("#docdetails p:first-child").detach();
+				$("#docdetails tr").detach();
+				var filename = href.split('#')[0];
+				var uid = href.split('#')[1];
+				var revs = revisions[uid];
+				var suffix = '';
+				if (filename.split('.').length > 1) {
+					suffix = filename.replace(filename.split('.')[0], '');
+				}
+				$("#docdetails").prepend('<p>'+filename+'</p>');
+				for (var i = 0; i < revs.length; i++) {
+					$("#docdetails tbody").append('<tr><td><input type="checkbox" name="stypi/'+uid+'/'+revs[i]+suffix+'" value=""></td><td><a href="stypi/'+uid+'/'+revs[i]+suffix+'">Revision '+revs[i]+'</a></td></tr>');
+				}
+				$('#docdetails tbody input[type=checkbox]').click(function(e) {
+					if ($('#docdetails tbody input[type=checkbox]:checked').length == 2) {
+						$('#comparerevisions').removeAttr('disabled');
+					} else {
+						$('#comparerevisions').attr('disabled', 'disabled');
+					}
+				});
+			}
+			
+			function createDocumentTable (fileObjs) {
+				$('#documentstats #filelist').remove();
+				$('#documentstats').append('<table id="filelist"><thead><tr><th>Name</th>'+
+					'<th># Revisions</th><th>Last Retrieved</th><th></th></tr>'+
+					'</thead><tbody></tbody></table>');
+				var html = '';
+				for (var index = 0; index < fileObjs.length; index++) {
+					var file = fileObjs[index];
+					var uid = file["uid"];
+					var date = new Date(file["history"]["time"] - (new Date().getTimezoneOffset() * 60000));
+					var time = date.toISOString().replace(/\.\d\d\dZ/, "");
+					html += '<tr id="'+uid+'">'+
+						'<td><a href="https://stypi.com'+file["visibleUrl"]+'" target="_blank">'+file["title"].replace(' - Stypi', '')+'</a></td>'+
+						'<td>'+file["history"]["number"]+'</td>'+
+						'<td><span style="display: none;">'+file["history"]["time"]+'</span><time class="timeago" datetime="'+time+'">'+time+'</time></td>'+
+						'<td><a class="docDetails" href="'+file["title"].replace(' - Stypi', '')+'#'+uid+'">Details</a></td></tr>\n';
+				 }
+				 $("#filelist tbody").append(html);
+
+				 
+				 $("#filelist").tablesorter({sortList: [[2,1]]} );
+				 $("#filelist").trigger("update").trigger("appendCache");
+				 $("#filelist .timeago").timeago();
+			}
+			
+			function insertScanData (data) {
+				var lastScan = new Date(data["lastScan"] - (new Date().getTimezoneOffset() * 60000)).toISOString().replace(/\.\d\d\dZ/, "");
+				$('p#lastScan time').remove();
+				$('p#lastScan').append('<time>');
+				var tm = $('p#lastScan>time');
+				$(tm).attr ('datetime', lastScan);
+				$(tm).text (lastScan);
+				$(tm).removeAttr('title');
+				$(tm).timeago();
+				//$(tm).trigger('update');
+				$('span#numRetrFiles').text(data["files"].length);
+				$('a#zipFilename').attr('href', "archives/"+data["zipFilename"]);
+			}
+			
+			function compareVersions (version1, version2, name1, name2) {
+				var content1;
+				var content2;
+				$.ajax({
+					url: version1,
+					cache: false,
+					success: function(data){
+						content1 = data;
+						$.ajax({
+							url: version2,
+							cache: false,
+							success: function(data){
+								content2 = data;
+								diff ( content2, content1);
+								var titles = $('.diff th.texttitle');
+								$(titles[0]).text (name2);
+								$(titles[1]).text (name1);
+							},
+							error: function(XMLHttpRequest, textStatus, errorThrown) {
+								$('#error').html("Error loading version data for"+version2).show();
+							}
+						});
+					},
+					error: function(XMLHttpRequest, textStatus, errorThrown) {
+						$('#error').html("Error loading version data for"+version1).show();
+					}
+				});
+			}
+		
+		</script>
+	</head>
+	<body>
+		<header>
+			<h1>Mecodepretty</h1>
+		</header>
+		<section id="maincontent">
+			<p id="error" class="panel">
+			</p>
+			<div id="scanstats" class="panel">
+				<p><span>Scan Statistics:</span></p>
+				<p id="lastScan" >Last scan: <time class="timeago" datetime="'+time+'">'+time+'</time></p>
+				<p>Number of retrieved files: <span id="numRetrFiles"></span></p>
+				<p>Download the <a id="zipFilename" href="">archive</a> containing all documents.</p>
+			</div>
+			<div id="documentstats">
+				<table id="filelist">
+					<thead>
+						<tr><th>Name</th><th># Revisions</th><th>Last Retrieved</th><th></th></tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+				<div id="docdetails" class="panel" style="display: none">
+					<table>
+						<thead>
+							<tr><th></th><th>Revision</th></tr>
+						</thead>
+						<tbody>
+						</tbody>
+					</table>
+					<p><button id="comparerevisions" disabled="disabled">Compare Versions</button></p>
+				</div>
+				
+			</div>	
+			<div id="lightbox" style="display: none">
+				<div style="position: relative; z-index: 2; top: 12px; left: 75em;">
+					<img style="display: block; position: relative; left: 22px;" src="assets/close.gif" alt="close" onclick="$('#lightbox').hide(); return false;">
+				</div>
+				<div id="diffoutput">
+					
+				</div>
+			</div>
+
+		</section>
+	
+	<script src="assets/difflib.js" type="text/javascript"></script>
+	<script src="assets/diffview.js" type="text/javascript"></script>
+	<script type="text/javascript">
+		function diff (baseIn, newIn) {
+			var basetxt = difflib.stringAsLines(baseIn);
+			var newtxt = difflib.stringAsLines(newIn);
+			var sm = new difflib.SequenceMatcher(basetxt, newtxt);
+			var opcodes = sm.get_opcodes();
+			$('#lightbox').show();
+			var diffoutputdiv = $("#diffoutput");
+			while (diffoutputdiv.firstChild) {
+				diffoutputdiv.removeChild(diffoutputdiv.firstChild);
+			}
+			var contextSize = $("#contextSize").value;
+			contextSize = contextSize ? contextSize : null;
+			$(diffoutputdiv).append(
+				diffview.buildView(
+					{ baseTextLines:basetxt,
+					  newTextLines:newtxt,
+					  opcodes:opcodes,
+					  baseTextName:"Base Text",
+					  newTextName:"New Text",
+					  contextSize:contextSize,
+					  viewType: $("inline").checked ? 1 : 0 
+					}
+				)
+			);
+		};
+	</script>
+	</body>
+</html>

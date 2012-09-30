@@ -1,0 +1,12 @@
+[stypi]
+ login = <stypilogin>
+ password = <stypipassword>
+ outDir = archive/
+ archiveDir = zips/
+ 
+[database]
+ dbhost = <databasehost>
+ dbname = <databasename>
+ dbport = 3306
+ dbuser = <databaselogin>
+ dbpass = <databasepassword>
