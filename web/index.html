@@ -39,7 +39,7 @@
 			
 			function fetchStats () {			
 				$.ajax({
-					url: "stypi/sitemap.json",
+					url: "archive/sitemap.json",
 					cache: false,
 					success: function(json){
 					 	revisions = [];
@@ -58,7 +58,7 @@
 							createRevisionTable (href);
 							$("#filelist").hide();
 							$("#docdetails").show();		 	
-							history.pushState("docdetails","","http://isnow.de/mecodepretty/");
+							history.pushState("docdetails","","");
 							e.preventDefault();
 						});
 					},
