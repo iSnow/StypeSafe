@@ -2,9 +2,9 @@ package de.isnow.stypi;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.Writer;
+import java.io.OutputStreamWriter;
 
 import de.isnow.stypi.data.StypiDocument;
 import de.isnow.stypi.data.StypiDocumentVersion;
@@ -24,7 +24,9 @@ public class StypiWriter {
 			File versionFile = new File (uIdDir, version.version+".md");
 			if (!versionFile.exists()) {
 				retval++;
-				Writer writer = new BufferedWriter(new FileWriter (versionFile));
+				FileOutputStream fos = new FileOutputStream(versionFile);
+				OutputStreamWriter ow = new OutputStreamWriter(fos, GLOBALS.CHARSETNAME);
+				BufferedWriter writer = new BufferedWriter(ow);
 				writer.write(version.getText());
 				writer.close();
 			}
