@@ -18,6 +18,7 @@
 
 				window.onpopstate = function() {  
 					console.log ("back"); 
+					$('#lightbox').hide();
 					$("#docdetails").hide();
 					$("#filelist").show();
 				}
@@ -39,7 +40,7 @@
 			
 			function fetchStats () {			
 				$.ajax({
-					url: "archive/sitemap.json",
+					url: "stypi/sitemap.json",
 					cache: false,
 					success: function(json){
 					 	revisions = [];
@@ -195,8 +196,8 @@
 				
 			</div>	
 			<div id="lightbox" style="display: none">
-				<div style="position: relative; z-index: 2; top: 12px; left: 75em;">
-					<img style="display: block; position: relative; left: 22px;" src="assets/close.gif" alt="close" onclick="$('#lightbox').hide(); return false;">
+				<div style="left: 76.5em; position: absolute; top: 1.4em; z-index: 2;">
+					<img src="assets/close.gif" alt="close" onclick="$('#lightbox').hide(); return false;">
 				</div>
 				<div id="diffoutput">
 					
@@ -213,11 +214,9 @@
 			var newtxt = difflib.stringAsLines(newIn);
 			var sm = new difflib.SequenceMatcher(basetxt, newtxt);
 			var opcodes = sm.get_opcodes();
-			$('#lightbox').show();
 			var diffoutputdiv = $("#diffoutput");
-			while (diffoutputdiv.firstChild) {
-				diffoutputdiv.removeChild(diffoutputdiv.firstChild);
-			}
+			$(diffoutputdiv).empty();
+			$('#lightbox').show();
 			var contextSize = $("#contextSize").value;
 			contextSize = contextSize ? contextSize : null;
 			$(diffoutputdiv).append(
