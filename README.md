@@ -1,7 +1,7 @@
 StypeSafe
 =========
 
-Add the missing features of stypi.com
+Add some missing features to stypi.com
 
 ###Purpose
 Stypesafe tries to add some of the more needed features to Stypi. Amongst those are:
