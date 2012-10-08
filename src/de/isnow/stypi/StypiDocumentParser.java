@@ -66,6 +66,7 @@ public class StypiDocumentParser {
 					f.authorId = attrs.getAsJsonPrimitive("authorId").getAsString();
 					versionObj.addFragment(f);
 				}
+				versionObj.generateFingerprint();
 			}
 		}
 		return doc;

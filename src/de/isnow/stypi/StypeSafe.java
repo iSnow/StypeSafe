@@ -1,7 +1,5 @@
 package de.isnow.stypi;
 
-import static de.isnow.stypesafe.jooq.Tables.DOCUMENT;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -15,9 +13,7 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -26,12 +22,14 @@ import org.apache.log4j.Logger;
 import org.ini4j.Wini;
 import org.jooq.InsertSetMoreStep;
 import org.jooq.InsertSetStep;
+import org.jooq.tools.unsigned.UInteger;
 import org.jsoup.nodes.Document;
 import org.junit.Assert;
 
 import de.isnow.stypesafe.jooq.StypesafeFactory;
 import de.isnow.stypesafe.jooq.Tables;
-import de.isnow.stypesafe.jooq.tables.Documentversion;
+import de.isnow.stypesafe.jooq.helpers.Query;
+import de.isnow.stypesafe.jooq.tables.records.ActivitylogRecord;
 import de.isnow.stypesafe.jooq.tables.records.DocumentRecord;
 import de.isnow.stypesafe.jooq.tables.records.DocumentversionRecord;
 import de.isnow.stypesafe.jooq.tables.records.ErrorRecord;
@@ -91,9 +89,12 @@ public class StypeSafe {
 					out.closeEntry();
 				}
 				
-				DocumentRecord result = (DocumentRecord)fac.select().from(DOCUMENT).where(DOCUMENT.STYPIUID.equal(key)).fetchOne();
+				DocumentRecord result = Query.fetchDocumentByStypiId(fac, key);
 				if (null == result) {
-					result = new DocumentRecord(stypiDoc);
+					result = new DocumentRecord();
+					result.setStypiuid(stypiDoc.stypiId);
+					result.setTitle(stypiDoc.title);
+					result.setUrl(stypiDoc.humanReadableUrl);
 				}
 				sitemap.addDocument (stypiDoc);
 				int numNewVersions = wr.writeDocument(stypiDoc);
@@ -102,26 +103,29 @@ public class StypeSafe {
 					InsertSetStep<DocumentRecord> s = fac.insertInto(Tables.DOCUMENT);
 					InsertSetMoreStep<DocumentRecord> sm = result.prepareInsert(s);
 					sm.execute();
-					result = (DocumentRecord)fac.select().from(DOCUMENT).where(DOCUMENT.STYPIUID.equal(key)).fetchOne();
+					result = Query.fetchDocumentByStypiId(fac, key);
 				}
-				if (result.getId() != null) {
-					List<DocumentversionRecord> versionList = result.fetchVersions();
-					Map<Integer, DocumentversionRecord> versions = new TreeMap<Integer, DocumentversionRecord>();
-					for (DocumentversionRecord r : versionList) {
-						versions.put(r.getValueAsInteger(Documentversion.DOCUMENTVERSION.VERSION), r);
-					}
-					for (StypiDocumentVersion v : stypiDoc.getVersions()) {
-						if (!versions.containsKey(v.version)) {
-							DocumentversionRecord drv = new DocumentversionRecord(v, result.getId());
-							versions.put(v.version, drv);
-						}
+
+				if ((ver != null) && (result.getId() != null)) {
+					ver.generateFingerprint();
+					int v = ver.version;
+					DocumentversionRecord newVersion = Query.fetchVersionByFingerprint(fac, result.getId(), ver.fingerprint);
+					if (null == newVersion) {
+						newVersion = Query.fetchVersionByVersionNumber(fac, result.getId(), UInteger.valueOf(v));
+						if (null == newVersion) {
+							newVersion = fac.newRecord(Tables.DOCUMENTVERSION);
+							newVersion.setFingerprint(ver.fingerprint);
+							newVersion.setFkDocument(result);
+							newVersion.setVersion(UInteger.valueOf(ver.version));
+							newVersion.store();
+						} 
+					} else if (v != newVersion.getVersion().intValue()) {
+							ActivitylogRecord ar = fac.newRecord(Tables.ACTIVITYLOG);
+							ar.setActivity("Insert DocumentversionRecord - found Fingerprint");
+							ar.setResult("not inserted: "+v+" , same fp with "+newVersion.getVersion()+" fp="+newVersion.getFingerprint());
+							ar.store();
 					}
 				}
-				/*for (result.) {
-					if (null == entry.getValue().getId()) {
-						//
-					}
-				}*/
 			}	
 			out.close();
 			File sitemapFile = new File (outDir, "sitemap.json");
@@ -135,7 +139,7 @@ public class StypeSafe {
 			ex.printStackTrace();
 			ErrorRecord e = new ErrorRecord();
 			e.setError(Arrays.toString(ex.getStackTrace()));
-			e.into(Tables.ERROR);
+			e.store();
 		}
 		finally {
 			client.getConnectionManager().shutdown(); // Close the instance here
