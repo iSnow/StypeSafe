@@ -96,7 +96,7 @@ Note: you must edit stypesafe.sh and replace <path-to-worker-directory> with you
 
     00,30 * * * * <path-to-worker-directory>/stypesafe.sh
 
-This will run stypesafe.jar every half hour. 
+This will run stypesafe.jar every 30 minutes. 
 
 5) Point your browser to the index.html file and wait till the cronjob retrieves new versions. Errors are logged to `stypi.error.log` in the worker directory where a `log.txt` captures all the conversation between stypesafe.jar and the Stypi webserver if you need to debug your setup.
 
