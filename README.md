@@ -86,7 +86,7 @@ StypeSafe consists of two parts:
      + stypesafe.jar
      + stypesafe.sh
 
-Note: you must edit stypesafe.sh and replace <path-to-worker-directory> with your real paths. Also you need to edit the path for JavaHome.
+Note: you must edit stypesafe.sh and replace &lt;path-to-worker-directory&gt; with your real paths. Also you need to edit the path for JavaHome.
 
 2) If your file layout is done, edit config.txt and enter your stypi credentials as well as the information needed to access the database.
 
