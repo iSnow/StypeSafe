@@ -46,7 +46,7 @@ For StypeSafe to be usable, you need:
 
 * jstz.min.js (https://bitbucket.org/pellepim/jstimezonedetect/downloads)
 
-####To build the stypesafe.jar, you need the following libraries:
+####To build the stypesafe.jar (this is optional, you could as well use the one available under downloads), you need the following libraries:
 
 * apache-log4j-1.2.17
 
